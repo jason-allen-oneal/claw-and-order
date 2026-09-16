@@ -6,6 +6,7 @@ export interface Config {
   observedChannelIds: string[];
   databaseUrl: string;
   collectionEnabled: boolean;
+  captureBotMessages: boolean;
   contentSignalsEnabled: boolean;
   fingerprintSecret: string;
   retentionDays: number;
@@ -43,6 +44,7 @@ function integer(env: NodeJS.ProcessEnv, key: string, fallback: number, min: num
 }
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const collectionEnabled = bool(env, 'COLLECTION_ENABLED');
+  const captureBotMessages = bool(env, 'CAPTURE_BOT_MESSAGES');
   const contentSignalsEnabled = bool(env, 'CONTENT_SIGNALS_ENABLED');
   const autoReviewEnabled = bool(env, 'AUTO_REVIEW_ENABLED', collectionEnabled && contentSignalsEnabled);
   if (autoReviewEnabled && (!collectionEnabled || !contentSignalsEnabled)) throw new Error('Automatic cases require collection and content signals');
@@ -65,7 +67,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     token: required(env, 'DISCORD_TOKEN'), applicationId: id(env, 'DISCORD_APPLICATION_ID'),
     guildId: id(env, 'DISCORD_GUILD_ID'), moderatorChannelId, observedChannelIds, databaseUrl,
-    collectionEnabled, contentSignalsEnabled, fingerprintSecret, autoReviewEnabled,
+    collectionEnabled, captureBotMessages, contentSignalsEnabled, fingerprintSecret, autoReviewEnabled,
     autoReviewIntervalSeconds: integer(env, 'AUTO_REVIEW_INTERVAL_SECONDS', 300, 60, 3600),
     autoReviewTickSeconds: integer(env, 'AUTO_REVIEW_TICK_SECONDS', 15, 5, 300),
     autoReviewBatchSize: integer(env, 'AUTO_REVIEW_BATCH_SIZE', 10, 1, 25),

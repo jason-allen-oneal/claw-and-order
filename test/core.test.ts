@@ -27,8 +27,14 @@ function env(): NodeJS.ProcessEnv {
 test('defaults do not collect content or member activity', () => {
   const config = loadConfig(env());
   assert.equal(config.collectionEnabled, false);
+  assert.equal(config.captureBotMessages, false);
   assert.equal(config.contentSignalsEnabled, false);
   assert.deepEqual(config.observedChannelIds, []);
+});
+
+test('bot message capture is explicit and configurable', () => {
+  assert.equal(loadConfig({ ...env(), CAPTURE_BOT_MESSAGES: 'true' }).captureBotMessages, true);
+  assert.throws(() => loadConfig({ ...env(), CAPTURE_BOT_MESSAGES: 'yes' }), /true or false/);
 });
 test('string false is not treated as truthy', () => {
   assert.equal(loadConfig({ ...env(), COLLECTION_ENABLED: 'false' }).collectionEnabled, false);

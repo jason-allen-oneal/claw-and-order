@@ -39,7 +39,8 @@ export async function startBot(config: Config): Promise<void> {
   const inScope = (guildId: string | null, channelId: string) => config.collectionEnabled
     && guildId === config.guildId && config.observedChannelIds.includes(channelId);
   const record = (message: Message) => {
-    if (stopping || !inScope(message.guildId, message.channelId) || message.author.bot || message.webhookId || message.system) return;
+    if (stopping || !inScope(message.guildId, message.channelId) ||
+      (!config.captureBotMessages && message.author.bot) || message.webhookId || message.system) return;
     const cutoff = Date.now() - config.retentionDays * 86400000;
     if (message.createdTimestamp < cutoff || message.createdTimestamp > Date.now() + 1000) return;
     const features = config.contentSignalsEnabled

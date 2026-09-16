@@ -38,6 +38,8 @@ Use the committed lockfile. Never provide an ordinary member token or enable dep
 
 Live collection means watching **new messages** in OBSERVED_CHANNEL_IDS while the process is running. It does not scan old channel history, read DMs, watch other servers, inspect computers, or enumerate members. Threads must be listed explicitly. With COLLECTION_ENABLED=false, no new observations are recorded.
 
+`CAPTURE_BOT_MESSAGES` is false by default. Set it to true only for controlled evaluation; webhook and system messages remain excluded.
+
 For continuous monitoring and automatic case creation, configure:
 
 ```dotenv
