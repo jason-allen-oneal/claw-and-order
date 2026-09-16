@@ -19,7 +19,7 @@
     "commands:register": "node --env-file-if-exists=.env --experimental-strip-types src/register.ts"
   },
   "dependencies": {
-    "discord.js": "14.22.1",
+    "discord.js": "14.27.0",
     "pg": "8.16.3"
   },
   "devDependencies": {
