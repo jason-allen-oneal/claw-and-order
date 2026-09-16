@@ -8,7 +8,7 @@ export function commandDefinitions() {
     base('review', 'Review a bounded activity sample. Not a verdict.')
       .addUserOption(o => o.setName('member').setDescription('Member to review').setRequired(true))
       .addIntegerOption(o => o.setName('days').setDescription('Observation window, subject to retention').setMinValue(1).setMaxValue(30)),
-    base('status', 'Show collection mode and process health.'),
+    base('status', 'Show whether new-message monitoring is on and check process health.'),
     base('forget', 'Erase retained observations for one member. Future activity can still be collected.')
       .addUserOption(o => o.setName('member').setDescription('Member whose retained data will be erased').setRequired(true))
       .addBooleanOption(o => o.setName('confirm').setDescription('Confirm erasing retained observations').setRequired(true)),
@@ -24,6 +24,7 @@ export function formatReport(report: Report): string {
     `Heuristic score: ${score}`,
     'Automation probability: unavailable (not calibrated).',
   ];
+  if (report.sample.messages === 0) lines.push('No observations available. Check /status, allowed channels, and the review window.');
   for (const signal of report.signals) {
     lines.push('', signal.description, `Alternative: ${signal.alternative}`);
     const messageId = signal.messageIds[0];

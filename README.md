@@ -4,13 +4,21 @@ Evidence-first Discord moderation tooling for reviewing ordinary accounts that m
 
 Status: experimental scaffold. It runs a deterministic analyzer against bounded activity samples. It does not establish whether a member is an AI agent. There is no trained model, calibrated probability, LLM connection, automatic enforcement, or production approval.
 
+## What "live collection" means
+
+It is **new-message monitoring**: while running and enabled, the bot observes messages arriving in the explicitly configured channels and saves derived observations for later `/review` requests. It does not scan old channel history, read DMs, watch other servers, or inspect anyone's computer.
+
+`COLLECTION_ENABLED=false` means no new observations are saved. On a fresh install, reviews will therefore have no member activity to analyze. This is an installation default, not the intended operating mode of a configured deployment. `CONTENT_SIGNALS_ENABLED` separately controls extracting text-derived signals; when off, only metadata/reply timing is available. Enabling content analysis also requires the appropriate Message Content access and fingerprint secret.
+
+`/status` now spells out whether monitoring is ON or OFF, whether content analysis is enabled, and that history backfill is absent. Analysis remains on demand through `/review`; continuous observation is not automatic case alerts. Follow the controlled-evaluation setup below to enable monitoring after scope and required permissions are established.
+
 ## Included
 
 - TypeScript, discord.js, PostgreSQL, and a bounded analysis worker.
 - `/review member [days]`, `/status`, and `/forget member confirm`, restricted to Manage Server permission and one configured moderator channel. Every response is ephemeral.
 - Exact guild/channel scoping and permission-filtered reviews. Registered bots, webhooks, system messages, and DMs are excluded.
-- Three explainable signal families: observed reply timing, repeated substantive text, and candidate tool/execution artifacts. Grammar, punctuation, identity, account age, and nighttime activity are not scored.
-- Keyed, per-guild/per-member text fingerprints. **Raw message content is never persisted by the application.** Markdown code/quotes are excluded from content features; explicit log-attribution patterns suppress artifact findings.
+- Four checks in three explainable families: robust reply cadence and recurring cross-channel reply bursts (timing), exact/near-duplicate substantive text (repetition), and structured tool/execution artifacts. Grammar, punctuation, identity, account age, and nighttime activity are not scored.
+- Keyed, per-guild/per-member text fingerprints and bounded similarity sketches. **Raw message content is never persisted by the application.** Markdown code/quotes are excluded from content features; explicit log-attribution patterns exclude attributed output from all content signals, including repetition.
 - Live-event deduplication, edit/delete invalidation, replay tombstones, bounded ingestion, retention cleanup, and member-data erasure.
 - Native Node tests, a synthetic offline demo, PostgreSQL integration tests, Docker Compose, and GitHub Actions.
 
@@ -56,11 +64,15 @@ The bot defaults to seven-day retention, configurable from one to thirty days. C
 
 ## Reading a report
 
-Reports concern **one account during one window**, not a permanent identity. At least twenty distinct messages spanning thirty minutes are required to assign an aggregate heuristic score. Reaching the message cap causes abstention; choose a shorter window. Two distinct signal families are required for `review-recommended`.
+Reports concern **one account during one window**, not a permanent identity. At least twenty distinct messages spanning thirty minutes are required to assign an aggregate heuristic score. Reaching the message cap causes abstention; choose a shorter window. Two distinct signal families are required for `review-recommended`. Related timing checks share one contribution, so cadence plus a reply burst does not count as two families. [Detector details and limitations](docs/DETECTOR.md) explain the experimental thresholds.
 
-`heuristicScore` is an unvalidated weighted indicator, **not a percentage**. `automationProbability` is always `null`. An absence of strong indicators does not establish human operation. Every signal includes evidence IDs and an alternative explanation. JSON attachments include Discord message links so authorized moderators can inspect original context without storing raw content here.
+`heuristicScore` is an unvalidated weighted indicator, **not a percentage**. `automationProbability` is always `null`. An absence of strong indicators does not establish human operation. Every signal includes a stable check code, measured counts, evidence IDs, and an alternative explanation. `familyScores` explains the contribution caps. JSON attachments include Discord message links so authorized moderators can inspect original context without storing raw content here.
 
 `/forget member confirm:true` erases that member's retained observations in this guild, not messages on Discord. It leaves short-lived message-ID tombstones to block replay; those contain no author or content. It is not an opt-out from collection of future activity.
+
+## Upgrading from the initial scaffold
+
+Run `npm run db:migrate` before restarting the upgraded bot. Migration 002 adds a nullable similarity-sketch column without replacing observations. Old observations retain exact matching and timing support, but cannot gain similarity sketches because their raw messages were never stored. Newly observed eligible messages get sketches.
 
 ## Docker
 
@@ -80,7 +92,11 @@ The bundled database password is local-development-only. Set a strong `POSTGRES_
 ```text
 src/config.ts       Fail-closed configuration
 src/features.ts     Transient content-to-feature extraction
-src/analyzer.ts     Pure deterministic, explainable analysis
+src/analyzer.ts     Report assembly and family-capped scoring
+src/timing.ts       Reply cadence and recurring cross-channel bursts
+src/similarity.ts   Keyed, bounded shingle sketches
+src/repetition.ts   Exact and near-duplicate grouping
+src/status.ts       Plain-language monitoring status
 src/worker.ts       Feature-only analysis worker entry
 src/reviewer.ts     Worker timeout and memory limit
 src/store.ts        Parameterized PostgreSQL persistence

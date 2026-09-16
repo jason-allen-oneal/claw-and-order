@@ -7,6 +7,7 @@ import type { Config } from './config.ts';
 import type { Observation } from './types.ts';
 import { contentFeatures } from './features.ts';
 import { formatReport } from './commands.ts';
+import { formatMonitoringStatus } from './status.ts';
 import { EventQueue } from './queue.ts';
 import { reviewInWorker } from './reviewer.ts';
 import { Store } from './store.ts';
@@ -68,7 +69,7 @@ export async function startBot(config: Config): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     if (interaction.commandName === 'status') {
       await store.ping();
-      await interaction.editReply(`Claw & Order\nCollection: ${config.collectionEnabled}\nContent signals: ${config.contentSignalsEnabled}\nRetention: ${config.retentionDays} days\nThis process: ${JSON.stringify(counters)}\nProbability: unavailable. Coverage is partial; counters reset on restart.`);
+      await interaction.editReply(formatMonitoringStatus(config, counters));
       return;
     }
     const member = interaction.options.getUser('member', true);

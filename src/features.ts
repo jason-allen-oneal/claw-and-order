@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import type { Artifact, Observation } from './types.ts';
+import { makeSketch } from './similarity.ts';
 
 // Content is transient. Fenced/inline code and Markdown quotations are not writing signals.
 export function conversationalText(content: string): string {
@@ -23,19 +24,23 @@ export function conversationalText(content: string): string {
   }
   return lines.join(' ').replace(/(`+)[\s\S]*?\1/g, ' ').replace(/\s+/g, ' ').trim();
 }
-export function contentFeatures(content: string, key: string, guildId: string, authorId: string): Pick<Observation, 'contentLength' | 'fingerprint' | 'artifacts'> {
+export function contentFeatures(content: string, key: string, guildId: string, authorId: string): Pick<Observation, 'contentLength' | 'fingerprint' | 'artifacts' | 'similarity'> {
   if (Buffer.byteLength(key) < 32) throw new Error('Fingerprint key is too short');
-  const text = conversationalText(content);
+  const text = conversationalText(content).normalize('NFKC');
   const artifacts: Artifact[] = [];
-  // Conservative suppression for explicitly attributed logs/examples. Still fallible.
-  const attributed = /\b(?:pasted|example output|debug logs|(?:my|the) (?:agent|bot) (?:said|returned)|here is the output)\b/i.test(text);
-  if (!attributed && /(?:<tool_call>[\s\S]*<\/tool_call>|"tool_calls"\s*:\s*\[)/i.test(text)) artifacts.push('tool-envelope');
-  if (!attributed && /\b(?:tool_use_id|assistant to=functions\.|recipient_name\s*[=:]\s*functions\.)/i.test(text)) artifacts.push('execution-marker');
+  // Explicitly attributed logs/examples are excluded from ALL content signals, not
+  // just artifact matching. Otherwise copied support logs inflate repetition/bursts.
+  const attributed = /\b(?:pasted|example output|debug logs|(?:my|the) (?:agent|bot|model) (?:said|returned|printed|replied|output)|here is the output|(?:error|output|logs?) (?:I|we) (?:got|received)|stack trace)\b/i.test(text);
+  if (attributed) return { contentLength: 0, fingerprint: null, artifacts: [], similarity: null };
+  // Match structures, not bare vocabulary such as "tool_calls" in a support question.
+  if (/(?:<tool_call>[^]*<\/tool_call>|"tool_calls"\s*:\s*\[\s*\{|<function_calls>[^]*<\/function_calls>)/i.test(text)) artifacts.push('tool-envelope');
+  if (/(?:["']?tool_use_id["']?\s*[:=]\s*["']?[a-z0-9_-]+|assistant\s+to=(?:functions|tools)\.[a-z_]+|recipient_name\s*[=:]\s*["']?(?:functions|tools)\.[a-z_]+)/i.test(text)) artifacts.push('execution-marker');
   return {
     contentLength: text.length,
     fingerprint: text.length >= 80
       ? createHmac('sha256', key).update(`${guildId}:${authorId}:`).update(text.toLowerCase()).digest('hex')
       : null,
     artifacts,
+    similarity: text.length >= 80 ? makeSketch(text, key, guildId, authorId) : null,
   };
 }

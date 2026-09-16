@@ -4,6 +4,10 @@
 
 Confirm Discord policy and intent access; document notice, reviewer access, retention, appeals, and deletion. Review the dependency lock and audit results. Exercise installation, migration, command registration, scope filters, permission revocation, and deletion in a dedicated authorized test guild.
 
+## Implemented in detector v0.2
+
+Bounded keyed near-duplicate matching, median-based reply cadence, recurring cross-channel reply bursts, family-capped contributions, structured artifact matching, attribution suppression across content signals, and explicit monitoring status. These improve the available checks, not establish measured detection accuracy.
+
 ## Next engineering work
 
 Persist gateway coverage intervals and data-quality state across restarts. Add durable priority handling for invalidations and erasure, replay tests across reconnects, database failure recovery, and audit records that do not store content. Add command interaction mocks and a dedicated test-guild smoke test. Review pinned action revisions and pin container digests after validating supported versions. Expand Markdown parsing and evidence-context review without silently retaining raw content.

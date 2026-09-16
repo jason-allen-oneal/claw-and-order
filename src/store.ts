@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
 import type { Observation, ReviewMessage } from './types.ts';
+import { validSketch } from './similarity.ts';
 const { Pool } = pg;
 
 export class Store {
@@ -15,21 +16,24 @@ export class Store {
     try {
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(719452831)');
-      const sql = await readFile(new URL('../migrations/001_init.sql', import.meta.url), 'utf8')
-        .catch(() => readFile(new URL('../../migrations/001_init.sql', import.meta.url), 'utf8'));
-      await client.query(sql);
+      for (const name of ['001_init.sql', '002_similarity.sql']) {
+        const sql = await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8')
+          .catch(() => readFile(new URL(`../../migrations/${name}`, import.meta.url), 'utf8'));
+        await client.query(sql);
+      }
       await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }
   async insert(row: Observation): Promise<void> {
     await this.pool.query(`INSERT INTO observations
-      (guild_id,message_id,author_id,channel_id,created_at,reply_to_id,content_length,fingerprint,artifacts)
-      SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb
+      (guild_id,message_id,author_id,channel_id,created_at,reply_to_id,content_length,fingerprint,artifacts,similarity)
+      SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb
       WHERE NOT EXISTS (SELECT 1 FROM removed_messages WHERE guild_id=$1 AND message_id=$2)
       ON CONFLICT (guild_id,message_id) DO NOTHING`, [
       row.guildId, row.messageId, row.authorId, row.channelId, new Date(row.createdAt),
       row.replyToId, row.contentLength, row.fingerprint, JSON.stringify(row.artifacts),
+      validSketch(row.similarity) ? JSON.stringify(row.similarity) : null,
     ]);
   }
   async remove(guildId: string, ids: string[]): Promise<void> {
@@ -63,6 +67,7 @@ export class Store {
         replyToId: r.reply_to_id as string | null, contentLength: r.content_length as number | null,
         fingerprint: r.fingerprint as string | null, artifacts: r.artifacts as Observation['artifacts'],
         replyLatencyMs: r.latency === null ? null : Number(r.latency),
+        similarity: validSketch(r.similarity) ? r.similarity : null,
       })),
     };
   }

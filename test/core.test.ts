@@ -71,7 +71,7 @@ test('attributed agent logs are not operational artifacts', () => {
 });
 test('feature records never contain raw content', () => {
   const features = contentFeatures('secret user content '.repeat(10), key, guildId, authorId);
-  assert.deepEqual(Object.keys(features).sort(), ['artifacts', 'contentLength', 'fingerprint']);
+  assert.deepEqual(Object.keys(features).sort(), ['artifacts', 'contentLength', 'fingerprint', 'similarity']);
   assert.ok(!JSON.stringify(features).includes('secret user content'));
 });
 test('fingerprints are scoped to both member and guild', () => {
@@ -127,7 +127,7 @@ test('repeated substantive text alone has a human-template alternative', () => {
   assert.equal(report.priority, 'some-indicators');
   assert.match(report.signals[0]!.alternative, /templates/);
 });
-test('independent features can recommend review but never produce probability', () => {
+test('distinct feature families can recommend review but never produce probability', () => {
   const input = sample();
   input.messages.forEach((row, i) => {
     row.fingerprint = 'same-keyed-fingerprint'; row.contentLength = 150;
