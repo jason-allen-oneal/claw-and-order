@@ -1,7 +1,7 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts; fi
+RUN npm ci --ignore-scripts
 COPY tsconfig.json ./
 COPY src ./src
 COPY test ./test

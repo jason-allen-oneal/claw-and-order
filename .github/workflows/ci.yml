@@ -34,12 +34,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install without lifecycle scripts
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --ignore-scripts --no-audit --no-fund
-          else
-            npm install --ignore-scripts --no-audit --no-fund
-          fi
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - name: Test emitted JavaScript
         run: node --test dist/test/*.test.js

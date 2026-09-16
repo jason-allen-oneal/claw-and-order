@@ -10,13 +10,13 @@ Status: experimental scaffold. It runs a deterministic analyzer against bounded 
 - `/review member [days]`, `/status`, and `/forget member confirm`, restricted to Manage Server permission and one configured moderator channel. Every response is ephemeral.
 - Exact guild/channel scoping and permission-filtered reviews. Registered bots, webhooks, system messages, and DMs are excluded.
 - Three explainable signal families: observed reply timing, repeated substantive text, and candidate tool/execution artifacts. Grammar, punctuation, identity, account age, and nighttime activity are not scored.
-- Keyed, per-guild/per-member text fingerprints. **Raw message content is never persisted by the application.** Markdown code/quotes and explicitly attributed logs are excluded from content heuristics.
+- Keyed, per-guild/per-member text fingerprints. **Raw message content is never persisted by the application.** Markdown code/quotes are excluded from content features; explicit log-attribution patterns suppress artifact findings.
 - Live-event deduplication, edit/delete invalidation, replay tombstones, bounded ingestion, retention cleanup, and member-data erasure.
 - Native Node tests, a synthetic offline demo, PostgreSQL integration tests, Docker Compose, and GitHub Actions.
 
 ## Try the offline demo
 
-Use Node.js 22.16 or newer. These commands need neither a Discord token nor a database nor installed npm dependencies:
+Use Node.js 24.17 or newer. These commands need neither a Discord token nor a database nor installed npm dependencies:
 
 ```sh
 npm run demo
@@ -28,7 +28,7 @@ The database integration test is skipped unless `TEST_DATABASE_URL` points to a 
 ## Local development
 
 ```sh
-npm install --ignore-scripts
+npm ci --ignore-scripts
 cp .env.example .env
 # Edit the settings. Leave COLLECTION_ENABLED=false initially.
 docker compose up -d db
@@ -38,7 +38,7 @@ npm run build
 npm start
 ```
 
-Dependencies are explicitly versioned. CI emits the generated lockfile as a validation artifact if no lockfile is committed yet. Once a reviewed lockfile exists, use `npm ci --ignore-scripts` for reproducible installs. Do not enable lifecycle scripts just to make installation succeed.
+The committed lockfile records the dependency graph that passed CI, including the production dependency audit. Use `npm ci --ignore-scripts` for reproducible installs. CI also checks the emitted JavaScript, not just the TypeScript source. Do not enable lifecycle scripts just to make installation succeed.
 
 Use an official Discord application with the `bot` and `applications.commands` scopes. Never provide a member token. Give it only the channel access required for the configured scope, not Administrator, Ban Members, Kick Members, or Moderate Members. No enforcement permissions are needed. Enable the privileged Message Content intent only when authorized and enabling content signals. Verify current Discord access/review requirements in the official documentation rather than assuming server count is sufficient.
 
@@ -56,7 +56,7 @@ The bot defaults to seven-day retention, configurable from one to thirty days. C
 
 ## Reading a report
 
-Reports concern **one account during one window**, not a permanent identity. At least twenty distinct messages spanning thirty minutes are required to assign an aggregate heuristic score. Reaching the message cap causes abstention; choose a shorter window. Two independent signal families are required for `review-recommended`.
+Reports concern **one account during one window**, not a permanent identity. At least twenty distinct messages spanning thirty minutes are required to assign an aggregate heuristic score. Reaching the message cap causes abstention; choose a shorter window. Two distinct signal families are required for `review-recommended`.
 
 `heuristicScore` is an unvalidated weighted indicator, **not a percentage**. `automationProbability` is always `null`. An absence of strong indicators does not establish human operation. Every signal includes evidence IDs and an alternative explanation. JSON attachments include Discord message links so authorized moderators can inspect original context without storing raw content here.
 
@@ -99,6 +99,6 @@ See [SECURITY.md](SECURITY.md) before connecting this to another agent or tool r
 - [Discord Gateway and privileged intents](https://docs.discord.com/developers/events/gateway)
 - [Discord Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
 - [Automated user accounts policy](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)
-- [discord.js documentation](https://discord.js.org/docs/packages/discord.js/14.22.1)
+- [discord.js documentation](https://discord.js.org/docs/packages/discord.js/14.27.0)
 
 No license has been selected for this repository. The scaffold does not assign one on the owner's behalf.

@@ -6,7 +6,7 @@ Confirm Discord policy and intent access; document notice, reviewer access, rete
 
 ## Next engineering work
 
-Persist gateway coverage intervals and data-quality state across restarts. Add durable priority handling for invalidations and erasure, replay tests across reconnects, database failure recovery, and audit records that do not store content. Add command interaction mocks and a dedicated test-guild smoke test. Pin action and container digests after validating supported versions. Expand Markdown parsing and evidence-context review without silently retaining raw content.
+Persist gateway coverage intervals and data-quality state across restarts. Add durable priority handling for invalidations and erasure, replay tests across reconnects, database failure recovery, and audit records that do not store content. Add command interaction mocks and a dedicated test-guild smoke test. Review pinned action revisions and pin container digests after validating supported versions. Expand Markdown parsing and evidence-context review without silently retaining raw content.
 
 ## Probability, only after evidence
 
