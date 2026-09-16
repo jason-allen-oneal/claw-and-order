@@ -1,23 +1,15 @@
 # Roadmap
 
-## Before real-member evaluation
+## Implemented
 
-Confirm Discord policy and intent access; document notice, reviewer access, retention, appeals, and deletion. Review the dependency lock and audit results. Exercise installation, migration, command registration, scope filters, permission revocation, and deletion in a dedicated authorized test guild.
+Scoped collection, feature-only storage, explainable heuristic analysis, exact and near-duplicate detection, reply cadence and cross-channel burst checks, private manual reviews, deletion/erasure/retention, synthetic tests, PostgreSQL integration tests, and reproducible CI.
 
-## Implemented in detector v0.2
+Continuous automatic review and durable cases are now implemented. The queue coalesces activity, the database permits one open case per guild/member, the outbox retries alerts, and moderator commands resolve cases with cooldowns and fresh-evidence requirements. See AUTOMATION.md for operating constraints and failure handling.
 
-Bounded keyed near-duplicate matching, median-based reply cadence, recurring cross-channel reply bursts, family-capped contributions, structured artifact matching, attribution suppression across content signals, and explicit monitoring status. These improve the available checks, not establish measured detection accuracy.
+## Before relying on live results
 
-## Next engineering work
+Confirm platform authorization, privileged intent access, and community notice requirements. Run a controlled Discord smoke test for channel scope, permissions, message create/edit/delete events, cases, retries, and shutdown/reconnect handling. Measure precision, false positives, recall, throughput, queue lag, and baseline prevalence using independently established labels and an approved evaluation design.
 
-Persist gateway coverage intervals and data-quality state across restarts. Add durable priority handling for invalidations and erasure, replay tests across reconnects, database failure recovery, and audit records that do not store content. Add command interaction mocks and a dedicated test-guild smoke test. Review pinned action revisions and pin container digests after validating supported versions. Expand Markdown parsing and evidence-context review without silently retaining raw content.
+## Later
 
-## Probability, only after evidence
-
-Create independently established labels for manual posting, manually assisted posting, automation, mixed windows, and unresolved cases. Do not train on API-obtained content without required permission. Split evaluation by account and forward time. Evaluate precision at expected prevalence, false-positive rates, missing-data effects, reviewer agreement, and calibration on held-out data. Unknown is a valid result.
-
-A future calibrated output must identify its model version, evaluated population, calibration dataset/version, date, label definition, and applicability limits. It must not reinterpret the current heuristic score as a probability.
-
-## Deliberately absent
-
-LLM judge/provider integration; embeddings; automatic enforcement; public rankings; permanent AI labels; agent-catching prompt tricks; collection from other servers; user-token/self-bot login; identity profiling. A moderator queue and feedback workflow are future work, not existing features.
+Calibration and a properly evaluated probability estimator; per-channel baselines; additional independently validated signals; richer case evidence snapshots with permission-aware invalidation; moderator role configurability; metrics endpoints and operational dashboards; optional isolated contextual review. A worker thread is not a security boundary for untrusted tools or future LLM access. Do not turn moderator suspicions into training ground truth or add enforcement based solely on an unvalidated score.

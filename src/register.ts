@@ -8,5 +8,5 @@ try {
   for (const command of commandDefinitions()) {
     await rest.post(Routes.applicationGuildCommands(config.applicationId, config.guildId), { body: command.toJSON() });
   }
-  console.log('Registered review, status, and forget commands in the configured guild.');
+  console.log('Registered review, case, status, and forget commands in the configured guild.');
 } catch { console.error('Command registration failed. Check configuration and application access.'); process.exitCode = 1; }

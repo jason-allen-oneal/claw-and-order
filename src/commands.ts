@@ -8,6 +8,18 @@ export function commandDefinitions() {
     base('review', 'Review a bounded activity sample. Not a verdict.')
       .addUserOption(o => o.setName('member').setDescription('Member to review').setRequired(true))
       .addIntegerOption(o => o.setName('days').setDescription('Observation window, subject to retention').setMinValue(1).setMaxValue(30)),
+    base('case', 'Manage automatically opened activity review cases.')
+      .addSubcommand(c => c.setName('list').setDescription('List case IDs; details require a permission-filtered review.')
+        .addStringOption(o => o.setName('before').setDescription('Older than this case ID').setMaxLength(19)))
+      .addSubcommand(c => c.setName('show').setDescription('Review current permitted evidence for a case.')
+        .addStringOption(o => o.setName('id').setDescription('Case ID').setRequired(true).setMaxLength(19)))
+      .addSubcommand(c => c.setName('resolve').setDescription('Record a moderator decision. No enforcement is performed.')
+        .addStringOption(o => o.setName('id').setDescription('Case ID').setRequired(true).setMaxLength(19))
+        .addStringOption(o => o.setName('outcome').setDescription('Moderator assessment, not a model label').setRequired(true)
+          .addChoices({name:'Dismissed',value:'dismissed'}, {name:'Inconclusive',value:'inconclusive'},
+            {name:'Independently confirmed automation',value:'confirmed-automation'})))
+      .addSubcommand(c => c.setName('retry-alert').setDescription('Retry an undelivered case notification.')
+        .addStringOption(o => o.setName('id').setDescription('Case ID').setRequired(true).setMaxLength(19))),
     base('status', 'Show whether new-message monitoring is on and check process health.'),
     base('forget', 'Erase retained observations for one member. Future activity can still be collected.')
       .addUserOption(o => o.setName('member').setDescription('Member whose retained data will be erased').setRequired(true))

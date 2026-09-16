@@ -1,120 +1,88 @@
 # Claw & Order
 
-Evidence-first Discord moderation tooling for reviewing ordinary accounts that may be posting through automation. This is **not** a registered-bot detector and **not** an AI-writing detector.
+Discord moderation tooling for reviewing ordinary accounts that may be operated through automation. Not a registered-bot detector, an AI-writing detector, or a source of proven AI identity labels.
 
-Status: experimental scaffold. It runs a deterministic analyzer against bounded activity samples. It does not establish whether a member is an AI agent. There is no trained model, calibrated probability, LLM connection, automatic enforcement, or production approval.
+## Current capabilities
 
-## What "live collection" means
+Continuous new-message monitoring, automatic behavioral reviews, persistent cases, and private moderator notifications. TypeScript, discord.js, PostgreSQL, a bounded analysis worker, Docker Compose, and GitHub Actions.
 
-It is **new-message monitoring**: while running and enabled, the bot observes messages arriving in the explicitly configured channels and saves derived observations for later `/review` requests. It does not scan old channel history, read DMs, watch other servers, or inspect anyone's computer.
+The detector checks reply cadence, recurring cross-channel reply bursts, exact/near-duplicate substantive text, and structured execution artifacts. Related checks share score caps. Evidence references, measurements, and alternative explanations accompany reviews. Grammar, punctuation, identity, account age, and nighttime activity are not scored. See [detector design](docs/DETECTOR.md).
 
-`COLLECTION_ENABLED=false` means no new observations are saved. On a fresh install, reviews will therefore have no member activity to analyze. This is an installation default, not the intended operating mode of a configured deployment. `CONTENT_SIGNALS_ENABLED` separately controls extracting text-derived signals; when off, only metadata/reply timing is available. Enabling content analysis also requires the appropriate Message Content access and fingerprint secret.
+A qualifying member automatically gets one open case, not an alert for every message. Reviews update that case; moderator resolution adds a cooldown and requires fresh evidence before another case can open. Pending reviews and notifications are persisted. There are no automated bans, kicks, or timeouts, and no LLM integration. `automationProbability` remains null because the detector is not calibrated. A heuristic score is not a probability.
 
-`/status` now spells out whether monitoring is ON or OFF, whether content analysis is enabled, and that history backfill is absent. Analysis remains on demand through `/review`; continuous observation is not automatic case alerts. Follow the controlled-evaluation setup below to enable monitoring after scope and required permissions are established.
+## Try offline
 
-## Included
-
-- TypeScript, discord.js, PostgreSQL, and a bounded analysis worker.
-- `/review member [days]`, `/status`, and `/forget member confirm`, restricted to Manage Server permission and one configured moderator channel. Every response is ephemeral.
-- Exact guild/channel scoping and permission-filtered reviews. Registered bots, webhooks, system messages, and DMs are excluded.
-- Four checks in three explainable families: robust reply cadence and recurring cross-channel reply bursts (timing), exact/near-duplicate substantive text (repetition), and structured tool/execution artifacts. Grammar, punctuation, identity, account age, and nighttime activity are not scored.
-- Keyed, per-guild/per-member text fingerprints and bounded similarity sketches. **Raw message content is never persisted by the application.** Markdown code/quotes are excluded from content features; explicit log-attribution patterns exclude attributed output from all content signals, including repetition.
-- Live-event deduplication, edit/delete invalidation, replay tombstones, bounded ingestion, retention cleanup, and member-data erasure.
-- Native Node tests, a synthetic offline demo, PostgreSQL integration tests, Docker Compose, and GitHub Actions.
-
-## Try the offline demo
-
-Use Node.js 24.17 or newer. These commands need neither a Discord token nor a database nor installed npm dependencies:
+Use Node.js 24.17 or newer. No Discord token, database, or installed dependencies are needed for the synthetic demo and offline tests:
 
 ```sh
 npm run demo
 npm test
 ```
 
-The database integration test is skipped unless `TEST_DATABASE_URL` points to a dedicated disposable PostgreSQL database. The demo is deliberately suspicious **synthetic** data; its score demonstrates plumbing, not accuracy.
+PostgreSQL tests run only when TEST_DATABASE_URL explicitly points at a disposable test database. The synthetic demo verifies plumbing, not real-world accuracy.
 
-## Local development
+## Install and run
 
 ```sh
 npm ci --ignore-scripts
 cp .env.example .env
-# Edit the settings. Leave COLLECTION_ENABLED=false initially.
+# Configure the application, database, and explicit channel allowlist.
 docker compose up -d db
 npm run db:migrate
 npm run commands:register
-npm run build
+npm run check
 npm start
 ```
 
-The committed lockfile records the dependency graph that passed CI, including the production dependency audit. Use `npm ci --ignore-scripts` for reproducible installs. CI also checks the emitted JavaScript, not just the TypeScript source. Do not enable lifecycle scripts just to make installation succeed.
+Use the committed lockfile. Never provide an ordinary member token or enable dependency lifecycle scripts just to make installation succeed. Use an official Discord application with bot and applications.commands scopes. Give it only the channel permissions it needs, not Administrator, Ban Members, Kick Members, or Moderate Members. Content analysis requires the appropriate Message Content intent/access. Current platform permissions and policy review requirements must be checked before deployment.
 
-Use an official Discord application with the `bot` and `applications.commands` scopes. Never provide a member token. Give it only the channel access required for the configured scope, not Administrator, Ban Members, Kick Members, or Moderate Members. No enforcement permissions are needed. Enable the privileged Message Content intent only when authorized and enabling content signals. Verify current Discord access/review requirements in the official documentation rather than assuming server count is sufficient.
+Live collection means watching **new messages** in OBSERVED_CHANNEL_IDS while the process is running. It does not scan old channel history, read DMs, watch other servers, inspect computers, or enumerate members. Threads must be listed explicitly. With COLLECTION_ENABLED=false, no new observations are recorded.
 
-Set `DISCORD_APPLICATION_ID`, `DISCORD_GUILD_ID`, `DISCORD_TOKEN`, and `MODERATOR_CHANNEL_ID`. Restrict the moderator channel to your team. Members invoking commands need Manage Server permission; the code checks this at runtime as well as declaring command defaults. The bot does not fetch member lists or request presence/member-list intents.
+For continuous monitoring and automatic case creation, configure:
 
-A review filters observations to channels the requesting moderator can currently view and read. It does not retrieve channel history. Edits remove the original observation rather than analyze potentially stale content; the edited message stays excluded for the retention period. Threads need their own explicit channel IDs.
+```dotenv
+COLLECTION_ENABLED=true
+CONTENT_SIGNALS_ENABLED=true
+AUTO_REVIEW_ENABLED=true
+AUTO_REVIEW_TICK_SECONDS=15
+AUTO_REVIEW_INTERVAL_SECONDS=300
+AUTO_REVIEW_BATCH_SIZE=10
+AUTO_CASE_THRESHOLD=60
+CASE_COOLDOWN_HOURS=24
+```
 
-## Enabling a controlled live evaluation
+Also supply DISCORD_TOKEN, DISCORD_APPLICATION_ID, DISCORD_GUILD_ID, MODERATOR_CHANNEL_ID, OBSERVED_CHANNEL_IDS, DATABASE_URL, and FINGERPRINT_SECRET. Generate the secret with `openssl rand -hex 32`. Changing the key breaks comparisons with retained fingerprints. Set POLICY_REVIEW_ACKNOWLEDGED=true only after reviewing the intended deployment; this setting is an operator acknowledgment, not Discord approval. Blank AUTO_REVIEW_ENABLED follows the collection/content switches; false keeps manual-only review available.
 
-Read [the deployment and policy notes](docs/ARCHITECTURE.md) first. Discord's Developer Policy includes restrictions on profiling and on training from API-obtained message content. **A server administrator's authorization or an environment flag is not a substitute for any required Discord permission.** Confirm the intended use before operating against real member data.
+The moderator channel must be a guild text channel with an explicit @everyone View Channel denial and view grants only to Manage Server/Administrator roles or the bot itself. Member-specific human view grants are rejected for automatic notices; configure moderator access through roles. The bot needs View Channel, Send Messages, and Read Message History there. It posts only opaque case numbers; details are delivered through authorized private commands.
 
-After that review, explicitly set the guild/channel scope, `POLICY_REVIEW_ACKNOWLEDGED=true`, and `COLLECTION_ENABLED=true`. Content-derived features separately require `CONTENT_SIGNALS_ENABLED=true`, Message Content access, and a strong secret generated with `openssl rand -hex 32`. Without content signals, only observed reply timing is evaluated, and timing alone never produces `review-recommended`.
+## Moderator commands
 
-The bot defaults to seven-day retention, configurable from one to thirty days. Cleanup runs at startup and hourly while running. Backups, database logs, exported reports, and Discord-hosted ephemeral attachments have their own lifecycles; the bot cannot erase copies downloaded by moderators. Fingerprints and IDs are still personal data, not anonymization.
+- `/status`: monitoring switches, queue size, case counts, failed alerts, and coverage boundary.
+- `/review member [days]`: on-demand, permission-filtered review.
+- `/case list [before]`, `/case show id`, `/case resolve id outcome`, `/case retry-alert id`: case review and resolution, without enforcement.
+- `/forget member confirm:true`: erase retained member observations, case records, and queued work. New future activity may still be collected.
 
-## Reading a report
+Commands require Manage Server and must run in the configured moderator channel. Responses are ephemeral. Source-channel access is checked before displaying evidence. Shared alerts disclose no subject IDs, scores, message excerpts, or source-channel links.
 
-Reports concern **one account during one window**, not a permanent identity. At least twenty distinct messages spanning thirty minutes are required to assign an aggregate heuristic score. Reaching the message cap causes abstention; choose a shorter window. Two distinct signal families are required for `review-recommended`. Related timing checks share one contribution, so cadence plus a reply burst does not count as two families. [Detector details and limitations](docs/DETECTOR.md) explain the experimental thresholds.
+## Upgrading from v0.2
 
-`heuristicScore` is an unvalidated weighted indicator, **not a percentage**. `automationProbability` is always `null`. An absence of strong indicators does not establish human operation. Every signal includes a stable check code, measured counts, evidence IDs, and an alternative explanation. `familyScores` explains the contribution caps. JSON attachments include Discord message links so authorized moderators can inspect original context without storing raw content here.
-
-`/forget member confirm:true` erases that member's retained observations in this guild, not messages on Discord. It leaves short-lived message-ID tombstones to block replay; those contain no author or content. It is not an opt-out from collection of future activity.
-
-## Upgrading from the initial scaffold
-
-Run `npm run db:migrate` before restarting the upgraded bot. Migration 002 adds a nullable similarity-sketch column without replacing observations. Old observations retain exact matching and timing support, but cannot gain similarity sketches because their raw messages were never stored. Newly observed eligible messages get sketches.
-
-## Docker
+Stop the running process. Review your local changes before updating; do not overwrite them blindly.
 
 ```sh
-# Start database, then migrate using the built image.
-docker compose --profile bot build bot
-docker compose up -d db
-docker compose --profile bot run --rm bot node dist/src/migrate.js
-docker compose --profile bot run --rm bot node dist/src/register.js
-docker compose --profile bot up -d bot
+git pull --ff-only
+npm ci --ignore-scripts
+npm run db:migrate
+npm run commands:register
+npm run check
+npm start
 ```
 
-The bundled database password is local-development-only. Set a strong `POSTGRES_PASSWORD` for deployment and keep it consistent with connection settings. The database port binds to loopback. Production requires reviewed dependency locks/images, encrypted storage/backups, scoped credentials, network controls, and a published data-handling process.
+Migration 003 is additive and idempotent. Run one collector per guild; a database advisory lock prevents multiple instances. Restarts retain cases/jobs but start a new clean observation window. The detector still needs at least 20 messages spanning 30 minutes, two distinct signal families, and sufficient coverage before creating a case. Tick intervals are not guaranteed notification deadlines.
 
-## Project layout
+## Data and limitations
 
-```text
-src/config.ts       Fail-closed configuration
-src/features.ts     Transient content-to-feature extraction
-src/analyzer.ts     Report assembly and family-capped scoring
-src/timing.ts       Reply cadence and recurring cross-channel bursts
-src/similarity.ts   Keyed, bounded shingle sketches
-src/repetition.ts   Exact and near-duplicate grouping
-src/status.ts       Plain-language monitoring status
-src/worker.ts       Feature-only analysis worker entry
-src/reviewer.ts     Worker timeout and memory limit
-src/store.ts        Parameterized PostgreSQL persistence
-src/bot.ts          Scoped collection and private commands
-src/commands.ts     Command definitions and report presentation
-src/queue.ts        Bounded, serial ingestion
-migrations/         Database schema
-test/              Unit and database integration tests
-docs/              Architecture, limitations, and roadmap
-```
+No raw message bodies are persisted by the application. It retains message metadata and keyed, per-guild/per-member fingerprints/sketches, plus minimal case and resolution metadata. Derived data is sensitive, not anonymous. Edits, deletions, replay suppression, erasure, and retention remain implemented. Reports downloaded by moderators are outside automatic erasure control.
 
-See [SECURITY.md](SECURITY.md) before connecting this to another agent or tool runtime. No local OpenClaw checkout is loaded, trusted, or executed. See [the roadmap](docs/ROADMAP.md) for deliberately unfinished work.
+No trained classifier, validated accuracy estimate, calibrated probability, live-server verification, or platform approval is implied by passing tests. Discord's Developer Policy includes restrictions on profiling and training with message content. Obtain clarification for your intended moderation deployment rather than treating local hosting or server-admin consent as automatic permission. See https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy .
 
-## Primary references
-
-- [Discord Gateway and privileged intents](https://docs.discord.com/developers/events/gateway)
-- [Discord Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
-- [Automated user accounts policy](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)
-- [discord.js documentation](https://discord.js.org/docs/packages/discord.js/14.27.0)
-
-No license has been selected for this repository. The scaffold does not assign one on the owner's behalf.
+[Automation operations and failure handling](docs/AUTOMATION.md) | [Architecture](docs/ARCHITECTURE.md) | [Roadmap](docs/ROADMAP.md) | [Security](SECURITY.md)
