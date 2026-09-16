@@ -11,6 +11,7 @@ test('PostgreSQL migration, scope, reply joins, replay, erasure, and retention',
   const createdAt = Date.now();
   const row: Observation = { guildId, messageId: 'reply', authorId: 'member', channelId: 'channel',
     createdAt, replyToId: 'parent', contentLength: null, fingerprint: null, artifacts: [],
+    semantic: { score: 42, reasons: ['derived-only'], nearestPrototype: 'automated task report', similarity: 0.42, margin: 0.18 },
     similarity: makeSketch(Array.from({length: 40}, (_, i) => `syntheticword${i}`).join(' '),
       'synthetic-test-only-secret-key-12345', guildId, 'member') };
   try {
@@ -20,6 +21,7 @@ test('PostgreSQL migration, scope, reply joins, replay, erasure, and retention',
     const result = await store.review(guildId, 'member', ['channel'], createdAt - 10000, createdAt + 10000, 20);
     assert.equal(result.messages.length, 1); assert.equal(result.messages[0]!.replyLatencyMs, 5000);
     assert.deepEqual(result.messages[0]!.similarity, row.similarity);
+    assert.deepEqual(result.messages[0]!.semantic, row.semantic);
     await store.insert({ ...row, messageId: 'legacy', similarity: null });
     const legacy = await store.review(guildId, 'member', ['channel'], createdAt - 10000, createdAt + 10000, 20);
     assert.equal(legacy.messages.find(r => r.messageId === 'legacy')!.similarity, null);

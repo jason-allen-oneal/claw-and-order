@@ -7,6 +7,8 @@ export interface Config {
   databaseUrl: string;
   collectionEnabled: boolean;
   captureBotMessages: boolean;
+  semanticEnabled: boolean;
+  semanticModelPath: string;
   contentSignalsEnabled: boolean;
   fingerprintSecret: string;
   retentionDays: number;
@@ -17,6 +19,7 @@ export interface Config {
   autoReviewBatchSize: number;
   autoCaseThreshold: number;
   caseCooldownHours: number;
+  healthPort: number | null;
 }
 const snowflake = /^\d{17,20}$/;
 export function isSnowflake(value: string): boolean { return snowflake.test(value); }
@@ -45,12 +48,16 @@ function integer(env: NodeJS.ProcessEnv, key: string, fallback: number, min: num
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const collectionEnabled = bool(env, 'COLLECTION_ENABLED');
   const captureBotMessages = bool(env, 'CAPTURE_BOT_MESSAGES');
+  const semanticEnabled = bool(env, 'SEMANTIC_ENABLED');
+  const semanticModelPath = env.SEMANTIC_MODEL_PATH?.trim() ?? '';
+  if (semanticEnabled && !semanticModelPath) throw new Error('SEMANTIC_MODEL_PATH is required when semantic detection is enabled');
   const contentSignalsEnabled = bool(env, 'CONTENT_SIGNALS_ENABLED');
-  const autoReviewEnabled = bool(env, 'AUTO_REVIEW_ENABLED', collectionEnabled && contentSignalsEnabled);
-  if (autoReviewEnabled && (!collectionEnabled || !contentSignalsEnabled)) throw new Error('Automatic cases require collection and content signals');
+  const contentAnalysisEnabled = contentSignalsEnabled || semanticEnabled;
+  const autoReviewEnabled = bool(env, 'AUTO_REVIEW_ENABLED', collectionEnabled && contentAnalysisEnabled);
+  if (autoReviewEnabled && (!collectionEnabled || !contentAnalysisEnabled)) throw new Error('Automatic cases require collection and content analysis');
   const acknowledged = bool(env, 'POLICY_REVIEW_ACKNOWLEDGED');
   if (collectionEnabled && !acknowledged) throw new Error('Live collection requires POLICY_REVIEW_ACKNOWLEDGED=true');
-  if (contentSignalsEnabled && !collectionEnabled) throw new Error('Content signals require collection');
+  if (contentAnalysisEnabled && !collectionEnabled) throw new Error('Content analysis requires collection');
   const observedChannelIds = [...new Set((env.OBSERVED_CHANNEL_IDS ?? '').split(',').map(v => v.trim()).filter(Boolean))];
   if (observedChannelIds.some(value => !isSnowflake(value))) throw new Error('Invalid OBSERVED_CHANNEL_IDS');
   if (observedChannelIds.length > 100) throw new Error('At most 100 observed channels are supported');
@@ -67,7 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     token: required(env, 'DISCORD_TOKEN'), applicationId: id(env, 'DISCORD_APPLICATION_ID'),
     guildId: id(env, 'DISCORD_GUILD_ID'), moderatorChannelId, observedChannelIds, databaseUrl,
-    collectionEnabled, captureBotMessages, contentSignalsEnabled, fingerprintSecret, autoReviewEnabled,
+    collectionEnabled, captureBotMessages, semanticEnabled, semanticModelPath, contentSignalsEnabled, fingerprintSecret, autoReviewEnabled,
     autoReviewIntervalSeconds: integer(env, 'AUTO_REVIEW_INTERVAL_SECONDS', 300, 60, 3600),
     autoReviewTickSeconds: integer(env, 'AUTO_REVIEW_TICK_SECONDS', 15, 5, 300),
     autoReviewBatchSize: integer(env, 'AUTO_REVIEW_BATCH_SIZE', 10, 1, 25),
@@ -75,5 +82,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     caseCooldownHours: integer(env, 'CASE_COOLDOWN_HOURS', 24, 1, 168),
     retentionDays: integer(env, 'RETENTION_DAYS', 7, 1, 30),
     maxReviewMessages: integer(env, 'MAX_REVIEW_MESSAGES', 2000, 20, 10000),
+    healthPort: (env.HEALTH_PORT || env.PORT) ? integer(env, env.HEALTH_PORT ? 'HEALTH_PORT' : 'PORT', 8080, 1, 65535) : null,
   };
 }

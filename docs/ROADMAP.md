@@ -2,7 +2,7 @@
 
 ## Implemented
 
-Scoped collection, feature-only storage, explainable heuristic analysis, exact and near-duplicate detection, reply cadence and cross-channel burst checks, private manual reviews, deletion/erasure/retention, synthetic tests, PostgreSQL integration tests, and reproducible CI.
+Scoped collection, feature-only storage, explainable heuristic analysis, optional local semantic prototype scoring, exact and near-duplicate detection, reply cadence and cross-channel burst checks, private manual reviews, deletion/erasure/retention, synthetic tests, PostgreSQL integration tests, and reproducible CI.
 
 Continuous automatic review and durable cases are now implemented. The queue coalesces activity, the database permits one open case per guild/member, the outbox retries alerts, and moderator commands resolve cases with cooldowns and fresh-evidence requirements. See AUTOMATION.md for operating constraints and failure handling.
 

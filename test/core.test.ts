@@ -5,6 +5,7 @@ import { contentFeatures, conversationalText } from '../src/features.ts';
 import { loadConfig } from '../src/config.ts';
 import { EventQueue } from '../src/queue.ts';
 import { reviewInWorker } from '../src/reviewer.ts';
+import { commandDefinitions } from '../src/commands.ts';
 import type { ReviewInput, ReviewMessage } from '../src/types.ts';
 
 const guildId = '100000000000000001';
@@ -35,6 +36,18 @@ test('defaults do not collect content or member activity', () => {
 test('bot message capture is explicit and configurable', () => {
   assert.equal(loadConfig({ ...env(), CAPTURE_BOT_MESSAGES: 'true' }).captureBotMessages, true);
   assert.throws(() => loadConfig({ ...env(), CAPTURE_BOT_MESSAGES: 'yes' }), /true or false/);
+});
+test('manual review exposes an explicit bounded history backfill switch', () => {
+  const review = commandDefinitions().find(command => command.name === 'review')!.toJSON();
+  assert.equal(review.options?.some(option => option.name === 'backfill'), true);
+});
+test('semantic analysis is explicit and can supply content analysis by itself', () => {
+  assert.throws(() => loadConfig({ ...env(), SEMANTIC_ENABLED: 'true' }), /SEMANTIC_MODEL_PATH/);
+  const config = loadConfig({ ...env(), COLLECTION_ENABLED: 'true', POLICY_REVIEW_ACKNOWLEDGED: 'true',
+    OBSERVED_CHANNEL_IDS: '100000000000000010', SEMANTIC_ENABLED: 'true', SEMANTIC_MODEL_PATH: '/local/model',
+    CONTENT_SIGNALS_ENABLED: 'false' });
+  assert.equal(config.semanticEnabled, true);
+  assert.equal(config.autoReviewEnabled, true);
 });
 test('string false is not treated as truthy', () => {
   assert.equal(loadConfig({ ...env(), COLLECTION_ENABLED: 'false' }).collectionEnabled, false);
@@ -90,6 +103,26 @@ test('fingerprints are scoped to both member and guild', () => {
 test('empty and small samples abstain instead of claiming human', () => {
   assert.equal(analyze({ ...sample(), messages: [] }).priority, 'insufficient-evidence');
   assert.equal(analyze({ ...sample(), messages: sample().messages.slice(0, 10) }).heuristicScore, null);
+});
+test('manual exploratory gate can score a small sample without changing defaults', () => {
+  const input = { ...sample(), messages: sample().messages.slice(0, 3), scoreGate: { minMessages: 1, minSpanMs: 0 } };
+  assert.equal(analyze(input).heuristicScore, 0);
+  const { scoreGate: _scoreGate, ...defaultInput } = input;
+  assert.equal(analyze(defaultInput).heuristicScore, null);
+});
+test('semantic reasoning is reported without treating a zero score as a signal family', () => {
+  const messages = sample().messages.map((message, index) => ({ ...message,
+    semantic: { score: index === 0 ? 0 : 80, reasons: [], nearestPrototype: 'automated task report', similarity: 0.7, margin: 0.4 },
+  }));
+  const report = analyze({ ...sample(), messages });
+  assert.ok(report.signals.some(signal => signal.code === 'semantic-similarity'));
+  assert.equal(report.familyScores.semantic, 31);
+  assert.match(report.signals.find(signal => signal.code === 'semantic-similarity')!.description, /Nearest prototype/);
+  const clean = analyze({ ...sample(), messages: messages.map(message => ({ ...message,
+    semantic: { ...message.semantic!, score: 0 },
+  })) });
+  assert.equal(clean.familyScores.semantic, undefined);
+  assert.equal(clean.priority, 'no-strong-indicators');
 });
 test('baseline data yields no strong indicators, not a human verdict', () => {
   const report = analyze(sample());

@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 test/*.test.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "demo": "node --experimental-strip-types src/demo.ts",
     "start": "node --env-file-if-exists=.env dist/src/main.js",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "discord.js": "14.27.0",
+    "onnxruntime-node": "^1.30.0",
     "pg": "8.16.3"
   },
   "devDependencies": {

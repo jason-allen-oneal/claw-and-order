@@ -20,7 +20,7 @@ export class Store {
     try {
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(719452831)');
-      for (const name of ['001_init.sql', '002_similarity.sql', '003_cases.sql']) {
+      for (const name of ['001_init.sql', '002_similarity.sql', '003_cases.sql', '004_semantic.sql']) {
         const sql = await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8')
           .catch(() => readFile(new URL(`../../migrations/${name}`, import.meta.url), 'utf8'));
         await client.query(sql);
@@ -31,15 +31,23 @@ export class Store {
   }
   async insert(row: Observation): Promise<void> {
     await this.pool.query(`WITH inserted AS (INSERT INTO observations
-      (guild_id,message_id,author_id,channel_id,created_at,reply_to_id,content_length,fingerprint,artifacts,similarity)
-      SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb
+      (guild_id,message_id,author_id,channel_id,created_at,reply_to_id,content_length,fingerprint,artifacts,similarity,semantic)
+      SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb
       WHERE NOT EXISTS (SELECT 1 FROM removed_messages WHERE guild_id=$1 AND message_id=$2)
-      ON CONFLICT (guild_id,message_id) DO NOTHING RETURNING guild_id,author_id)
+      ON CONFLICT (guild_id,message_id) DO UPDATE SET
+        semantic = CASE WHEN observations.semantic IS NULL THEN EXCLUDED.semantic ELSE observations.semantic END,
+        content_length = COALESCE(observations.content_length, EXCLUDED.content_length),
+        fingerprint = COALESCE(observations.fingerprint, EXCLUDED.fingerprint),
+        artifacts = CASE WHEN observations.artifacts = '[]'::jsonb THEN EXCLUDED.artifacts ELSE observations.artifacts END,
+        similarity = COALESCE(observations.similarity, EXCLUDED.similarity)
+        WHERE observations.semantic IS NULL AND EXCLUDED.semantic IS NOT NULL
+        RETURNING guild_id,author_id)
       INSERT INTO review_jobs(guild_id,author_id) SELECT guild_id,author_id FROM inserted
       ON CONFLICT (guild_id,author_id) DO UPDATE SET dirty=true,revision=nextval('review_revision'),touched_at=now()`, [
       row.guildId, row.messageId, row.authorId, row.channelId, new Date(row.createdAt),
       row.replyToId, row.contentLength, row.fingerprint, JSON.stringify(row.artifacts),
       validSketch(row.similarity) ? JSON.stringify(row.similarity) : null,
+      row.semantic ? JSON.stringify(row.semantic) : null,
     ]);
   }
   async remove(guildId: string, ids: string[]): Promise<void> {
@@ -78,6 +86,7 @@ export class Store {
         fingerprint: r.fingerprint as string | null, artifacts: r.artifacts as Observation['artifacts'],
         replyLatencyMs: r.latency === null ? null : Number(r.latency),
         similarity: validSketch(r.similarity) ? r.similarity : null,
+        semantic: r.semantic ?? null,
       })),
     };
   }

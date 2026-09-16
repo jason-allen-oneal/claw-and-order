@@ -1,14 +1,14 @@
 # Claw & Order
 
-Discord moderation tooling for reviewing ordinary accounts that may be operated through automation. Not a registered-bot detector, an AI-writing detector, or a source of proven AI identity labels.
+Discord moderation tooling for reviewing accounts that may be operated through automation. It is not a registered-bot detector or a source of proven AI identity labels. The optional local semantic classifier is an experimental ranking signal, not an authorship verdict.
 
 ## Current capabilities
 
 Continuous new-message monitoring, automatic behavioral reviews, persistent cases, and private moderator notifications. TypeScript, discord.js, PostgreSQL, a bounded analysis worker, Docker Compose, and GitHub Actions.
 
-The detector checks reply cadence, recurring cross-channel reply bursts, exact/near-duplicate substantive text, and structured execution artifacts. Related checks share score caps. Evidence references, measurements, and alternative explanations accompany reviews. Grammar, punctuation, identity, account age, and nighttime activity are not scored. See [detector design](docs/DETECTOR.md).
+The detector checks reply cadence, recurring cross-channel reply bursts, exact/near-duplicate substantive text, structured execution artifacts, and—when enabled—semantic similarity to local prototypes. Related checks share score caps. Evidence references, measurements, and alternative explanations accompany reviews. Grammar, punctuation, identity, account age, and nighttime activity are not scored. See [detector design](docs/DETECTOR.md).
 
-A qualifying member automatically gets one open case, not an alert for every message. Reviews update that case; moderator resolution adds a cooldown and requires fresh evidence before another case can open. Pending reviews and notifications are persisted. There are no automated bans, kicks, or timeouts, and no LLM integration. `automationProbability` remains null because the detector is not calibrated. A heuristic score is not a probability.
+A qualifying member automatically gets one open case, not an alert for every message. Reviews update that case; moderator resolution adds a cooldown and requires fresh evidence before another case can open. Pending reviews and notifications are persisted. There are no automated bans, kicks, or timeouts, and no hosted or remote model calls. `automationProbability` remains null because the detector is not calibrated. A heuristic score is not a probability.
 
 ## Try offline
 
@@ -27,7 +27,7 @@ PostgreSQL tests run only when TEST_DATABASE_URL explicitly points at a disposab
 npm ci --ignore-scripts
 cp .env.example .env
 # Configure the application, database, and explicit channel allowlist.
-docker compose up -d db
+docker compose up -d --wait db
 npm run db:migrate
 npm run commands:register
 npm run check
@@ -36,9 +36,11 @@ npm start
 
 Use the committed lockfile. Never provide an ordinary member token or enable dependency lifecycle scripts just to make installation succeed. Use an official Discord application with bot and applications.commands scopes. Give it only the channel permissions it needs, not Administrator, Ban Members, Kick Members, or Moderate Members. Content analysis requires the appropriate Message Content intent/access. Current platform permissions and policy review requirements must be checked before deployment.
 
-Live collection means watching **new messages** in OBSERVED_CHANNEL_IDS while the process is running. It does not scan old channel history, read DMs, watch other servers, inspect computers, or enumerate members. Threads must be listed explicitly. With COLLECTION_ENABLED=false, no new observations are recorded.
+Live collection means watching **new messages** in OBSERVED_CHANNEL_IDS while the process is running. On-demand `/review ... backfill:true` can also fetch bounded history for the selected member from permitted configured channels; it does not read DMs, watch other servers, inspect computers, or enumerate members. Threads must be listed explicitly. With COLLECTION_ENABLED=false, no new observations or backfills are recorded.
 
 `CAPTURE_BOT_MESSAGES` is false by default. Set it to true only for controlled evaluation; webhook and system messages remain excluded.
+
+`SEMANTIC_ENABLED` enables the local in-process MiniLM prototype classifier. It makes no network inference calls and persists only derived scores, labels, similarities, margins, and reasons; the model path must contain `model.onnx` and `vocab.txt`. The classifier compares each transient message with fixed positive and negative prototypes. Its score is an experimental similarity ranking, not a calibrated probability or reliable proof of AI authorship.
 
 For continuous monitoring and automatic case creation, configure:
 
@@ -83,8 +85,8 @@ Migration 003 is additive and idempotent. Run one collector per guild; a databas
 
 ## Data and limitations
 
-No raw message bodies are persisted by the application. It retains message metadata and keyed, per-guild/per-member fingerprints/sketches, plus minimal case and resolution metadata. Derived data is sensitive, not anonymous. Edits, deletions, replay suppression, erasure, and retention remain implemented. Reports downloaded by moderators are outside automatic erasure control.
+No raw message bodies are persisted by the application. It retains message metadata and keyed, per-guild/per-member fingerprints/sketches, semantic prototype scores, and minimal case and resolution metadata. Derived data is sensitive, not anonymous. Edits, deletions, replay suppression, erasure, and retention remain implemented. Reports downloaded by moderators are outside automatic erasure control.
 
-No trained classifier, validated accuracy estimate, calibrated probability, live-server verification, or platform approval is implied by passing tests. Discord's Developer Policy includes restrictions on profiling and training with message content. Obtain clarification for your intended moderation deployment rather than treating local hosting or server-admin consent as automatic permission. See https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy .
+No trained authorship classifier, validated accuracy estimate, calibrated probability, live-server verification, or platform approval is implied by passing tests. Discord's Developer Policy includes restrictions on profiling and training with message content. Obtain clarification for your intended moderation deployment rather than treating local hosting or server-admin consent as automatic permission. See https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy .
 
 [Automation operations and failure handling](docs/AUTOMATION.md) | [Architecture](docs/ARCHITECTURE.md) | [Roadmap](docs/ROADMAP.md) | [Security](SECURITY.md)

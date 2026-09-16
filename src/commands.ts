@@ -7,7 +7,8 @@ export function commandDefinitions() {
   return [
     base('review', 'Review a bounded activity sample. Not a verdict.')
       .addUserOption(o => o.setName('member').setDescription('Member to review').setRequired(true))
-      .addIntegerOption(o => o.setName('days').setDescription('Observation window, subject to retention').setMinValue(1).setMaxValue(30)),
+      .addIntegerOption(o => o.setName('days').setDescription('Observation window, subject to retention').setMinValue(1).setMaxValue(30))
+      .addBooleanOption(o => o.setName('backfill').setDescription('Fetch permitted Discord history before reviewing (bounded)')),
     base('case', 'Manage automatically opened activity review cases.')
       .addSubcommand(c => c.setName('list').setDescription('List case IDs; details require a permission-filtered review.')
         .addStringOption(o => o.setName('before').setDescription('Older than this case ID').setMaxLength(19)))
@@ -36,6 +37,20 @@ export function formatReport(report: Report): string {
     `Heuristic score: ${score}`,
     'Automation probability: unavailable (not calibrated).',
   ];
+  const qualifyingFamilies = Object.keys(report.familyScores);
+  if (qualifyingFamilies.length > 0) {
+    const concordance = qualifyingFamilies.length >= 3 ? 'High' : qualifyingFamilies.length === 2 ? 'Moderate' : 'Low';
+    lines.push(`Signal concordance: ${concordance} (${qualifyingFamilies.length} behavioral ${qualifyingFamilies.length > 1 ? 'families' : 'family'}: ${qualifyingFamilies.join(', ')}).`);
+  }
+  if (report.heuristicScore === null) {
+    const reasons: string[] = [];
+    if (report.sample.messages < 20) reasons.push(`only ${report.sample.messages} messages (minimum 20)`);
+    if (report.sample.spanMs < 30 * 60000) reasons.push(`only ${Math.round(report.sample.spanMs / 60000)} minutes of activity (minimum 30)`);
+    if (report.sample.truncated) reasons.push('the message cap was reached');
+    lines.push(`Why no score: ${reasons.join('; ')}.`);
+  } else if (report.sample.messages < 20 || report.sample.spanMs < 30 * 60000 || report.sample.truncated) {
+    lines.push('Automatic case gate: not met; this is an exploratory manual score.');
+  }
   if (report.sample.messages === 0) lines.push('No observations available. Check /status, allowed channels, and the review window.');
   for (const signal of report.signals) {
     lines.push('', signal.description, `Alternative: ${signal.alternative}`);

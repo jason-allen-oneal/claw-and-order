@@ -1,6 +1,6 @@
 # Continuous monitoring and automatic cases
 
-This release adds a durable pipeline: new message -> derived observation and dirty-member job -> bounded automatic review -> one open case per member -> private moderator notification. It does not add bans, kicks, timeouts, member challenges, an LLM, or a calibrated probability.
+This release adds a durable pipeline: new message -> derived observation and dirty-member job -> bounded automatic review -> one open case per member -> private moderator notification. It does not add bans, kicks, timeouts, member challenges, hosted/remote model calls, or a calibrated probability. An optional local semantic prototype classifier is described in DETECTOR.md.
 
 ## Enable
 
