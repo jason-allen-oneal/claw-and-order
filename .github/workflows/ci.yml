@@ -1,0 +1,53 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: claw
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: claw_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U claw -d claw_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://claw:ci-only-disposable@localhost:5432/claw_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install without lifecycle scripts
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts --no-audit --no-fund
+          else
+            npm install --ignore-scripts --no-audit --no-fund
+          fi
+      - run: npm run check
+      - name: Exercise synthetic demo
+        run: node --experimental-strip-types src/demo.ts > demo-report.json
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scaffold-validation
+          path: |
+            package-lock.json
+            demo-report.json
+          retention-days: 7

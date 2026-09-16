@@ -1,0 +1,30 @@
+{
+  "name": "claw-and-order",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-first Discord automation review. No automatic enforcement.",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "demo": "node --experimental-strip-types src/demo.ts",
+    "start": "node --env-file-if-exists=.env dist/src/main.js",
+    "dev": "node --env-file-if-exists=.env --watch --experimental-strip-types src/main.ts",
+    "db:migrate": "node --env-file-if-exists=.env --experimental-strip-types src/migrate.ts",
+    "commands:register": "node --env-file-if-exists=.env --experimental-strip-types src/register.ts"
+  },
+  "dependencies": {
+    "discord.js": "14.22.1",
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "@types/pg": "8.15.5",
+    "typescript": "5.8.3"
+  }
+}
