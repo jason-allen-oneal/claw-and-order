@@ -21,11 +21,11 @@
   "dependencies": {
     "discord.js": "14.27.0",
     "onnxruntime-node": "^1.30.0",
-    "pg": "8.16.3"
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@types/node": "22.15.30",
-    "@types/pg": "8.15.5",
+    "@types/pg": "8.23.1",
     "typescript": "5.8.3"
   }
 }
